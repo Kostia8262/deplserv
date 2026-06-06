@@ -211,6 +211,115 @@ export const GUIDE_PHASES: GuidePhaseData[] = [
     icon: '⬆️',
     steps: [
       {
+        id: 'cicd-setup',
+        icon: '🤖',
+        title: 'Автодеплой (необязательно)',
+        subtitle: 'GitHub Actions — деплой при каждом git push',
+        blocks: [
+          { type: 'para', text: 'Если ваш код на GitHub, можно настроить автоматический деплой: делаете git push — сайт обновляется сам. Это CI/CD (Continuous Deployment).' },
+          // ─── CLOUD ─────────────────────────────────────────
+          { type: 'h3', text: 'Vercel / Netlify — уже готово!', forHosting: ['cloud'] },
+          { type: 'info', text: 'Если вы подключили репозиторий к Vercel или Netlify — автодеплой уже настроен. Каждый git push в main = новый деплой. Ничего настраивать не нужно.', forHosting: ['cloud'] },
+          // ─── SHARED ────────────────────────────────────────
+          { type: 'h3', text: 'Shared Hosting — деплой через FTP', forHosting: ['shared'] },
+          { type: 'para', text: 'Создайте файл .github/workflows/deploy.yml в репозитории:', forHosting: ['shared'] },
+          { type: 'code', forHosting: ['shared'], text: `name: Deploy to Hostinger
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install && npm run build
+      - name: Upload via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: \${{ secrets.FTP_HOST }}
+          username: \${{ secrets.FTP_USER }}
+          password: \${{ secrets.FTP_PASS }}
+          local-dir: ./dist/
+          server-dir: /public_html/` },
+          { type: 'tip', text: 'Добавьте FTP_HOST, FTP_USER, FTP_PASS в GitHub → Settings → Secrets and variables → Actions.', forHosting: ['shared'] },
+          // ─── VPS ───────────────────────────────────────────
+          { type: 'h3', text: 'VPS — деплой через SSH', forHosting: ['vps'] },
+          { type: 'para', text: 'Создайте файл .github/workflows/deploy.yml:', forHosting: ['vps'] },
+          { type: 'code', forHosting: ['vps'], text: `name: Deploy to VPS
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install && npm run build
+      - name: Copy files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: \${{ secrets.VPS_HOST }}
+          username: root
+          key: \${{ secrets.VPS_SSH_KEY }}
+          source: "dist/*"
+          target: /var/www/html` },
+          { type: 'tip', text: 'Добавьте VPS_HOST и VPS_SSH_KEY в GitHub Secrets. SSH-ключ: ssh-keygen -t ed25519, публичный ключ → /root/.ssh/authorized_keys на сервере.', forHosting: ['vps'] },
+        ],
+        links: [
+          { label: 'GitHub Actions Docs', url: 'https://docs.github.com/actions', note: 'Документация' },
+          { label: 'FTP Deploy Action', url: 'https://github.com/SamKirkland/FTP-Deploy-Action', note: 'для Shared' },
+          { label: 'SCP Action', url: 'https://github.com/appleboy/scp-action', note: 'для VPS' },
+        ],
+        checkItems: [
+          { id: 'cicd-optional', text: 'CI/CD настроен (или пропускаем — загружаем вручную)' },
+        ],
+      },
+      {
+        id: 'nginx-config',
+        icon: '⚙️',
+        title: 'Конфиг Nginx для VPS',
+        subtitle: 'Правильная настройка веб-сервера',
+        blocks: [
+          { type: 'h3', text: 'Базовый конфиг для статического сайта', forHosting: ['vps'] },
+          { type: 'code', forHosting: ['vps'], text: `# /etc/nginx/sites-available/mysite.conf
+server {
+    listen 80;
+    server_name example.com www.example.com;
+    root /var/www/html;
+    index index.html;
+
+    # SPA — все маршруты на index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Кэширование статики
+    location ~* \\.(js|css|png|jpg|svg|ico|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Gzip сжатие
+    gzip on;
+    gzip_types text/plain text/css application/json
+               application/javascript text/xml;
+}` },
+          { type: 'code', forHosting: ['vps'], text: `# Активировать конфиг:
+ln -s /etc/nginx/sites-available/mysite.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx` },
+          { type: 'tip', text: 'После установки SSL через certbot конфиг обновится автоматически — certbot сам добавит блок server для 443.', forHosting: ['vps'] },
+          { type: 'para', text: 'Это общий раздел — используйте кнопку "Копировать" выше. Если ваш хостинг не VPS — этот шаг пропустите.', forHosting: ['shared', 'cloud'] },
+        ],
+        checkItems: [
+          { id: 'nginx-configured', text: 'Nginx настроен и перезапущен', forHosting: ['vps'] },
+          { id: 'nginx-skip', text: 'Этот шаг не нужен (не VPS)', forHosting: ['shared', 'cloud'] },
+        ],
+      },
+      {
         id: 'upload-files',
         icon: '📤',
         title: 'Загрузите файлы на сервер',

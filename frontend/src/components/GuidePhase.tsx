@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { GuidePhaseData, GuideBlock, HostingType, GuideCheckItem } from '../types'
 
 interface Props {
@@ -15,8 +16,23 @@ interface Props {
   children?: React.ReactNode
 }
 
-// ─── Content renderers ───────────────────────────────────────────────────────
+// ─── Copy button ──────────────────────────────────────────────────────────────
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    })
+  }
+  return (
+    <button type="button" className="code-copy-btn" onClick={handleCopy}>
+      {copied ? '✓ Скопировано' : 'Копировать'}
+    </button>
+  )
+}
 
+// ─── Content renderers ────────────────────────────────────────────────────────
 function Block({ block }: { block: GuideBlock }) {
   switch (block.type) {
     case 'h3':
@@ -36,9 +52,10 @@ function Block({ block }: { block: GuideBlock }) {
       )
     case 'code':
       return (
-        <pre className="guide-code">
-          <code>{block.text}</code>
-        </pre>
+        <div className="guide-code-wrapper">
+          <pre className="guide-code"><code>{block.text}</code></pre>
+          {block.text && <CopyButton text={block.text} />}
+        </div>
       )
     case 'tip':
       return (
@@ -72,7 +89,7 @@ function HostingChoice({ hostingType, setHostingType }: { hostingType: HostingTy
       type: 'shared', icon: '🏠', title: 'Shared Hosting',
       sub: 'Hostinger, Beget, TimeWeb',
       badge: 'Для новичков', badgeCls: 'badge-green',
-      desc: 'Готовая панель управления, File Manager, 1 кликовый SSL. Цены от $2–5/мес.'
+      desc: 'Готовая панель управления, File Manager, 1-кликовый SSL. Цены от $2–5/мес.'
     },
     {
       type: 'vps', icon: '🖥', title: 'VPS / VDS',
@@ -84,7 +101,7 @@ function HostingChoice({ hostingType, setHostingType }: { hostingType: HostingTy
       type: 'cloud', icon: '☁️', title: 'Vercel / Netlify',
       sub: 'Для React, Vue, Next.js',
       badge: 'Бесплатно!', badgeCls: 'badge-teal',
-      desc: 'Деплой через git push, автоSSL, глобальный CDN. Идеально для статических сайтов.'
+      desc: 'Деплой через git push, авто-SSL, глобальный CDN. Идеально для статических сайтов.'
     },
   ]
 
@@ -132,23 +149,16 @@ function CheckItem({ item, checked, onToggle }: { item: GuideCheckItem; checked:
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
+// ─── Main component ────────────────────────────────────────────────────────────
 export function GuidePhase({ phase, isActive, isCompleted, hostingType, setHostingType, checked, toggleItem, onNext, onPrev, isFirst, isLast, children }: Props) {
-  // Collect visible checklist items across all steps
-  const allItems: GuideCheckItem[] = phase.steps.flatMap((s) =>
-    s.checkItems.filter((item) => !item.forHosting || !hostingType || item.forHosting.includes(hostingType))
+  const allItems: GuideCheckItem[] = phase.steps.flatMap(s =>
+    s.checkItems.filter(item => !item.forHosting || !hostingType || item.forHosting.includes(hostingType))
   )
-  const allDone = allItems.length === 0 || allItems.every((item) => checked[item.id])
+  const allDone = allItems.length === 0 || allItems.every(item => checked[item.id])
 
   return (
     <div className={`phase-wrapper${isActive ? ' phase-wrapper--active' : ''}`}>
-      {/* Phase header */}
-      <button
-        type="button"
-        className="phase-header"
-        onClick={() => {}} // collapsing handled by parent
-      >
+      <button type="button" className="phase-header" onClick={() => {}}>
         <div className="phase-header-left">
           <div className={`phase-num${isCompleted ? ' phase-num--done' : isActive ? ' phase-num--active' : ''}`}>
             {isCompleted ? (
@@ -166,15 +176,14 @@ export function GuidePhase({ phase, isActive, isCompleted, hostingType, setHosti
         </div>
       </button>
 
-      {/* Phase content */}
       {isActive && (
         <div className="phase-body">
-          {phase.steps.map((step) => {
+          {phase.steps.map(step => {
             const visibleBlocks = step.blocks.filter(
-              (b) => !b.forHosting || !hostingType || b.forHosting.includes(hostingType)
+              b => !b.forHosting || !hostingType || b.forHosting.includes(hostingType)
             )
             const visibleItems = step.checkItems.filter(
-              (item) => !item.forHosting || !hostingType || item.forHosting.includes(hostingType)
+              item => !item.forHosting || !hostingType || item.forHosting.includes(hostingType)
             )
 
             return (
@@ -187,21 +196,16 @@ export function GuidePhase({ phase, isActive, isCompleted, hostingType, setHosti
                   </div>
                 </div>
 
-                {/* Content blocks */}
                 {visibleBlocks.length > 0 && (
                   <div className="guide-blocks">
-                    {visibleBlocks.map((block, i) => (
-                      <Block key={i} block={block} />
-                    ))}
+                    {visibleBlocks.map((block, i) => <Block key={i} block={block} />)}
                   </div>
                 )}
 
-                {/* Hosting choice */}
                 {step.isHostingChoice && (
                   <HostingChoice hostingType={hostingType} setHostingType={setHostingType} />
                 )}
 
-                {/* Links */}
                 {step.links && step.links.length > 0 && (
                   <div className="guide-links">
                     <p className="guide-links-label">Полезные ссылки:</p>
@@ -216,11 +220,10 @@ export function GuidePhase({ phase, isActive, isCompleted, hostingType, setHosti
                   </div>
                 )}
 
-                {/* Checklist */}
                 {visibleItems.length > 0 && (
                   <div className="checklist">
                     <p className="checklist-label">Отметьте когда готово:</p>
-                    {visibleItems.map((item) => (
+                    {visibleItems.map(item => (
                       <CheckItem
                         key={item.id}
                         item={item}
@@ -231,13 +234,11 @@ export function GuidePhase({ phase, isActive, isCompleted, hostingType, setHosti
                   </div>
                 )}
 
-                {/* Inline children (for check phase) */}
                 {step.id === 'auto-checks' && children}
               </div>
             )
           })}
 
-          {/* Navigation */}
           <div className="phase-nav">
             {!isFirst && (
               <button type="button" className="phase-nav-back" onClick={onPrev}>

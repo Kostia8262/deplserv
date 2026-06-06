@@ -9,9 +9,22 @@ export interface CheckResult {
   suggestion?: string
   data?: Record<string, unknown>
 }
-export type CheckKey = 'dns' | 'http' | 'ssl' | 'redirect' | 'headers' | 'speed'
+
+export type CheckKey =
+  | 'dns' | 'http' | 'ssl' | 'redirect' | 'headers' | 'speed'
+  | 'seo' | 'mixed' | 'email' | 'whois' | 'pagespeed'
+
 export type AllChecks = Partial<Record<CheckKey, CheckResult>>
 export type CheckState = Record<CheckKey, 'idle' | 'loading' | 'done'>
+
+// ─── History ──────────────────────────────────────────────────────────────────
+export interface HistoryEntry {
+  id: string
+  domain: string
+  timestamp: number
+  results: AllChecks
+  score: number
+}
 
 // ─── Guide types ──────────────────────────────────────────────────────────────
 export interface GuideBlock {
